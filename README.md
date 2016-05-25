@@ -59,6 +59,7 @@ Options:
   -g TEXT        Compares anchor paths with text and jumps
                  to first match.
   -j NUM         Jump to anchor NUM in anchor list.
+  -i             Interactive anchor jumping.
   -1             Jump to last anchor in anchor list.
   -b             Go back to previous directory.
   -l, --list     Print list of set anchors.

@@ -16,22 +16,25 @@ Examples:
     # make the current directory the default anchor:
     $ anc s
 
-    # go to /etc and then back to the default anchor:
-    $ cd /etc; anc
+    # go to /etc, then /, then /usr/bin and then back to the default anchor:
+    $ cd /etc; cd ..; cd usr/local; anc
 
-    # go back to /etc :
+    # go back to /usr/local :
     $ anc b
 
-    # add another anchor :
-    $ anc a /home/user/test
+    # add another anchor:
+    $ anc a $HOME/test
 
     # view the list of anchors (the default one has the asterisk):
     $ anc l
     (0) /path/to/first/anchor *
-    (1) /home/user/test
+    (1) $HOME/test
 
-    # jump to the anchor we added:
+    # jump to the anchor we just added:
+    # by using its anchor number
     $ anc j1
+    # or by jumping to the last anchor in the list:
+    $ anc -1
 
     # add multiple anchors:
     $ anc a $HOME/projects/first $HOME/projects/second $HOME/documents/first

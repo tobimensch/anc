@@ -141,6 +141,12 @@ function anc_set_anchor
         DIR="$PWD"
     fi
 
+    if ! [[ -d "$DIR" ]]
+    then
+        anc_verbose "Not a directory"
+        return
+    fi
+
     DIR=$(anc_abspath "$DIR")
 
 	OLDANC=$(anc_get_anchor)
@@ -154,7 +160,7 @@ function anc_set_anchor
 
     anc_verbose "Set anchor: "$DIR
 
-    anc_add_anchor
+    anc_add_anchor "$DIR"
 }
 
 function anc_add_anchor
@@ -163,6 +169,12 @@ function anc_add_anchor
     if [[ "$DIR" == "" ]]
     then
         DIR="$PWD"
+    fi
+
+    if ! [[ -d "$DIR" ]]
+    then
+        anc_verbose "Not a directory"
+        return
     fi
 
     DIR=$(anc_abspath "$DIR")
@@ -180,19 +192,26 @@ function anc_add_anchor
 function anc_remove_anchor_it
 {
     # $3 is the DIR that should be removed
-    # $1 is one line in $HOME/.anc_list
-
-    if [[ $(anc_abspath "$3") != "$1" ]]
+    # $1 is a line in $HOME/.anc_list
+    
+    local DIR=$(anc_abspath "$3")
+    if [[ "$DIR" != "$1" ]]
     then
-        echo "$DIR" >> "$HOME/.anc_tmp"
+        echo "$1" >> "$HOME/.anc_tmp"
     fi
 }
 
 function anc_remove_anchor
 {
+    if ! [[ -d "$1" ]]
+    then
+        anc_verbose "Not a directory"
+        return
+    fi
+
     rm -f "$HOME/.anc_tmp"
     touch "$HOME/.anc_tmp"
-    anc_read_list anc_remove_anchor_it
+    anc_read_list anc_remove_anchor_it "$1"
     if [[ $(anc_file_size "$HOME/.anc_tmp") != $(anc_file_size "$HOME/.anc_list") ]]
     then
         mv "$HOME/.anc_tmp" "$HOME/.anc_list"
@@ -268,6 +287,11 @@ function anc_read_list
 		local CNT="0"
         local hl
 		while read hl; do
+            if [[ $hl == "" ]] #skip empty lines
+            then
+                continue
+            fi
+
 			$1 $hl $CNT $2
 			CNT=$((CNT+1))
 		done <$HOME/.anc_list
@@ -586,19 +610,19 @@ anc_read_config
 
 if   [[ "$1" == "s"       || "$1" == "set"   || "$1" == "-s"                  ]]
 then
-	anc_set_anchor $2
+	anc_set_anchor "$2"
 elif   [[ "$1" == "a"       || "$1" == "add"   || "$1" == "-a"                  ]]
 then
-	anc_add_anchor $2
+	anc_add_anchor "$2"
 elif   [[ "$1" == "r"       || "$1" == "remove"   || "$1" == "-r"                  ]]
 then
-	anc_remove_anchor $2
+	anc_remove_anchor "$2"
 elif   [[ "$1" == "b"     || "$1" == "back"  || "$1" == "-b"                  ]]
 then
 	anc_back
-elif   [[ "$1" == "g"     || "$1" == "grep"  || "$1" == "--grep"               ]]
+elif   [[ "$1" == "g"     || "$1" == "grep"  || "$1" == "--grep" || "$1" == "-g"    ]]
 then
-	anc_list_grep_jump "${@:1}"
+	anc_list_grep_jump "${@:2}"
 elif [[ "$1" == "v"       || "$1" == "c"       || "$1" == "view"  || "$1" == "info" ||
         "$1" == "current" || "$1" == "get"                                    ]]
 then

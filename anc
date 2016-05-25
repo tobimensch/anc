@@ -163,6 +163,14 @@ function anc_set_anchor
     anc_add_anchor "$DIR"
 }
 
+function anc_add_anchors
+{
+    for anc in "$@"
+    do
+        anc_add_anchor "$anc"
+    done
+}
+
 function anc_add_anchor
 {
     local DIR="$1"
@@ -201,6 +209,14 @@ function anc_remove_anchor_it
     fi
 }
 
+function anc_remove_anchors
+{
+    for anc in "$@"
+    do
+        anc_remove_anchor "$anc"
+    done
+}
+
 function anc_remove_anchor
 {
     if ! [[ -d "$1" ]]
@@ -215,10 +231,10 @@ function anc_remove_anchor
     if [[ $(anc_file_size "$HOME/.anc_tmp") != $(anc_file_size "$HOME/.anc_list") ]]
     then
         mv "$HOME/.anc_tmp" "$HOME/.anc_list"
-        anc_verbose "Anchor was removed from list"
+        anc_verbose "Anchor "$1" was removed from list"
     else
         rm -f "$HOME/.anc_tmp"
-        anc_verbose "Not in list. Nothing to do."
+        anc_verbose "$1 not in list. Nothing to do."
     fi
 }
 
@@ -566,7 +582,7 @@ Examples:
     # go back to /etc :
     $ anc b
 
-    # add another anchor :
+    # add another anchor:
     $ anc a $HOME/test
 
     # view the list of anchors (the default one has the asterisk):
@@ -576,6 +592,15 @@ Examples:
 
     # jump to the anchor we added:
     $ anc j1
+
+    # add multiple anchors:
+    $ anc a $HOME/projects/first $HOME/projects/second $HOME/documents/first
+
+    # use text matching to jump to $HOME/projects/first
+    $ anc g pro fir
+
+    # use text matching to jump to $HOME/documents/first
+    $ anc g doc fir
 
 EOF
     echo "$help"
@@ -613,10 +638,10 @@ then
 	anc_set_anchor "$2"
 elif   [[ "$1" == "a"       || "$1" == "add"   || "$1" == "-a"                  ]]
 then
-	anc_add_anchor "$2"
+	anc_add_anchors "${@:2}"
 elif   [[ "$1" == "r"       || "$1" == "remove"   || "$1" == "-r"                  ]]
 then
-	anc_remove_anchor "$2"
+	anc_remove_anchors "${@:2}"
 elif   [[ "$1" == "b"     || "$1" == "back"  || "$1" == "-b"                  ]]
 then
 	anc_back

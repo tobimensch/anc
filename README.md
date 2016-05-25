@@ -1,4 +1,5 @@
-anc is a shell script to make changing between frequently used directories
+anc is a she
+ll script to make changing between frequently used directories
 as easy and as natural as possible.
 
 > Note: The current version was developed with and for bash. Nevertheless it might work out of the box on other modern shells, but is unlikely to work on a pure POSIX shell. This may get fixed in future versions. Patches, bug reports and help welcome.
@@ -32,6 +33,15 @@ Examples:
 
     # jump to the anchor we added:
     $ anc j1
+
+    # add multiple anchors:
+    $ anc a $HOME/projects/first $HOME/projects/second $HOME/documents/first
+
+    # use text matching to jump to $HOME/projects/first
+    $ anc g pro fir
+
+    # use text matching to jump to $HOME/documents/first
+    $ anc g doc fir
 ```
 
 anc -h

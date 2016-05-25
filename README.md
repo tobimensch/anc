@@ -7,7 +7,7 @@ as easy and as natural as possible.
 Installation:
  1. Download anc.
  2. Put this line into ~/.bashrc 
-    ```alias anc=". full/path/to/anc"```
+    ```alias anc=". /absolute/path/to/anc"```
 
 > Note: Anchors are directories between which the user wants to jump back and forth.
 anc saves the list of anchors in ~/.anc_list. The current default anchor is saved in ~/.anc .

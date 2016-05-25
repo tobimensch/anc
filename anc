@@ -39,7 +39,7 @@ function anc_unset
     unset ANC_SAVE_ECHO
     unset ANC_ECHO_CACHE
     unset ANC_VERSION
-    #global var ANC_BACK is an exception to the rule
+    #global var ANC_BACK is the exception to the rule
     #it holds the last directory the user was in before anc changed it with anc
 }
 

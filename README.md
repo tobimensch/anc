@@ -4,8 +4,8 @@ as easy and as natural as possible.
 > Note: The current version was developed with and for bash. Nevertheless it might work out of the box on other modern shells, but is unlikely to work on a pure POSIX shell. This may get fixed in future versions. Patches, bug reports and help welcome.
 
 Installation:
-1. Download anc.
-2. Put this line into ~/.bashrc 
+ 1. Download anc.
+ 2. Put this line into ~/.bashrc 
     ```alias anc=". full/path/to/anc"```
 
 > Note: Anchors are directories between which the user wants to jump back and forth.

@@ -1,0 +1,655 @@
+#!/bin/bash
+#The MIT License (MIT)
+#
+#Copyright (c) 2016 Tobias Glaesser
+#
+#Permission is hereby granted, free of charge, to any person obtaining a copy
+#of this software and associated documentation files (the "Software"), to deal
+#in the Software without restriction, including without limitation the rights
+#to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+#copies of the Software, and to permit persons to whom the Software is
+#furnished to do so, subject to the following conditions:
+#
+#The above copyright notice and this permission notice shall be included in all
+#copies or substantial portions of the Software.
+#
+#THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+#IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+#AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+#OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+#SOFTWARE.
+
+# For bug reports, pull requests, issues, help, ideas,
+# the latest version and so forth visit: <http://github.com/tobimensch/anc/>.
+
+ANC_VERSION=0.1.0
+
+#CONFIG VARIABLES
+ANC_DEBUG=FALSE
+ANC_VERBOSE=FALSE
+
+function anc_unset
+{
+    #prevent terminal ENV from getting spammed with global variables
+    unset ANC_DEBUG
+    unset ANC_VERBOSE
+    unset ANC_VERBOSE_CACHE
+    unset ANC_SAVE_ECHO
+    unset ANC_ECHO_CACHE
+    unset ANC_VERSION
+    #global var ANC_BACK is an exception to the rule
+    #it holds the last directory the user was in before anc changed it with anc
+}
+
+function anc_debug
+{
+	if [[ $ANC_DEBUG == "TRUE" ]]
+	then
+		anc_echo $1
+	fi
+}
+
+ANC_VERBOSE_CACHE=
+
+function anc_verbose
+{
+	if [[ $ANC_VERBOSE == "TRUE" ]]
+	then
+		anc_echo $1
+
+        ANC_VERBOSE_CACHE="$ANC_VERBOSE_CACHE""$1""\n"
+  	fi
+}
+
+function anc_is_number
+{
+    case $1 in
+        ''|*[!0-9]*) echo "FALSE" ;;
+        *) echo "TRUE" ;;
+    esac
+}
+
+function anc_get_anchor
+{
+    if [[ ! -e "$HOME/.anc" ]]
+    then #no anchor was set
+        return
+    fi
+
+	echo $(< $HOME/.anc)
+}
+
+function anc_cd
+{
+    anc_debug "cd to anchor: "$1
+    if [[ "$PWD" != "$1" ]]
+    then
+        ANC_BACK="$PWD"
+
+        anc_verbose "Changed to: "$1
+        cd "$1"
+
+        # one might object to this code, because
+        # you could use $OLDPWD instead of $ANC_BACK.
+        # But what we want to save
+        # is the old directory that was specifically left
+        # by anc. If the user uses cd, $OLDPWD will not
+        # be what we want anymore.
+    else
+        anc_verbose "Already in: "$1
+    fi
+}
+
+function anc_back
+{
+    if [[ "$ANC_BACK" != "" ]]
+    then
+        anc_cd "$ANC_BACK"
+    fi
+}
+
+# taken from:
+# http://www.linuxquestions.org/questions/programming-9/bash-script-return-full-path-and-filename-680368/page3.html
+# by user arifsaha. Thanks man
+function anc_abspath {
+    if [[ -d "$1" ]]
+    then
+        pushd "$1" >/dev/null
+        pwd
+        popd >/dev/null
+    elif [[ -e $1 ]]
+    then
+        pushd "$(dirname "$1")" >/dev/null
+        echo "$(pwd)/$(basename "$1")"
+        popd >/dev/null
+    else
+        echo "$1" does not exist! >&2
+        return 127
+    fi
+}
+
+function anc_set_anchor
+{
+    local DIR
+    local OLDANC
+
+    DIR="$1"
+    if [[ "$DIR" == "" ]]
+    then
+        DIR="$PWD"
+    fi
+
+    DIR=$(anc_abspath "$DIR")
+
+	OLDANC=$(anc_get_anchor)
+	if [[ "$OLDANC" == "$DIR" ]]
+	then #nothing to do
+		return
+	fi
+
+    anc_debug "set anchor"
+    echo "$DIR" > "$HOME/.anc"
+
+    anc_verbose "Set anchor: "$DIR
+
+    anc_add_anchor
+}
+
+function anc_add_anchor
+{
+    local DIR="$1"
+    if [[ "$DIR" == "" ]]
+    then
+        DIR="$PWD"
+    fi
+
+    DIR=$(anc_abspath "$DIR")
+
+    #add anchor to anc list
+    #but only if the anchor isn't already in there
+    local FOUND=$(anc_list_find "$DIR")
+
+    if [[ "$FOUND" == "false" ]]
+    then
+        echo "$DIR" >> "$HOME/.anc_list"
+    fi
+}
+
+function anc_remove_anchor_it
+{
+    # $3 is the DIR that should be removed
+    # $1 is one line in $HOME/.anc_list
+
+    if [[ $(anc_abspath "$3") != "$1" ]]
+    then
+        echo "$DIR" >> "$HOME/.anc_tmp"
+    fi
+}
+
+function anc_remove_anchor
+{
+    rm -f "$HOME/.anc_tmp"
+    touch "$HOME/.anc_tmp"
+    anc_read_list anc_remove_anchor_it
+    if [[ $(anc_file_size "$HOME/.anc_tmp") != $(anc_file_size "$HOME/.anc_list") ]]
+    then
+        mv "$HOME/.anc_tmp" "$HOME/.anc_list"
+        anc_verbose "Anchor was removed from list"
+    else
+        rm -f "$HOME/.anc_tmp"
+        anc_verbose "Not in list. Nothing to do."
+    fi
+}
+
+function anc_file_size
+{
+    local TMP=$(wc -c $1 | cut -d' ' -f1)
+
+    if [[ "$?" != "0" ]] #couldn't read file size, probably file "$1" doesn't exist
+    then #default to 0
+        echo "0"
+    fi
+    echo "$TMP"
+}
+
+function anc_list_find
+{
+    if [[ -e "$HOME/.anc_list" ]]
+    then
+	    local CNT="0"
+        local hl
+	    while read hl; do
+		    if [[ "$hl" == "$1" ]]
+		    then
+                if [[ "$2" != "" ]]
+                then #hook
+                    $2
+                fi
+			    echo -n "true"
+                return
+		    fi
+		    CNT=$((CNT+1))
+	    done <$HOME/.anc_list
+    fi
+    echo -n "false"
+}
+
+function anc_list_it
+{
+	local ANCHOR=$(anc_get_anchor)
+    if [[ "$1" == "$ANCHOR" ]]
+    then
+        anc_echo "("$2")" $1 "*" 
+    else
+		anc_echo "("$2")" $1
+    fi
+}
+
+function anc_clear_list
+{
+    rm -f "$HOME/.anc_list"
+    anc_verbose "All anchors removed"
+}
+
+function anc_list
+{
+	if [[ -e "$HOME/.anc_list" ]]
+	then
+		anc_read_list anc_list_it
+	else
+		anc_echo "empty"
+	fi
+}
+
+function anc_read_list
+{
+		local CNT="0"
+        local hl
+		while read hl; do
+			$1 $hl $CNT $2
+			CNT=$((CNT+1))
+		done <$HOME/.anc_list
+}
+
+function anc_startswith
+{
+    [[ $1 == $2* ]]
+}
+
+function anc_read_config
+{
+	if [[ -e "$HOME/.anc_config" ]]
+	then
+		local CNT="0"
+        local hl
+		while read hl; do
+            if $(anc_startswith $hl "ANC_DEBUG=")
+            then
+                ANC_DEBUG=${hl:10}
+            elif $(anc_startswith $hl "ANC_VERBOSE=")
+            then
+                ANC_VERBOSE=${hl:12}
+            fi
+			CNT=$((CNT+1))
+		done <$HOME/.anc_config
+	fi
+}
+
+function anc_read_cursor_position #read absolute terminal cursor position
+{
+    local CSI="\e["
+    local CURPOS
+
+    echo -en $CSI"6n" #read
+    read -sdR CURPOS < /dev/tty #cursor
+
+    # this code is from another yet unreleased project of mine.
+    # it looks like magic code, but what it basically does is to read
+    # the response to echo -en $CSI"6n" and to decode it into
+    # the current line and column.
+    CURPOS=${CURPOS##*[}
+    CURLINE=${CURPOS%;*}
+    CURCOL=${CURPOS#*;}
+}
+
+function anc_move_left
+{
+    local CSI="\e["
+
+    if [ "$1" = "0" ]
+    then
+        return
+    fi
+
+    echo -ne $CSI"$1D";
+}
+
+function anc_set_cursor_position #set absolute cursor terminal position
+{
+    local CSI="\e["
+
+    echo -en $CSI"$2;$1H"
+}
+
+ANC_SAVE_ECHO=
+ANC_ECHO_CACHE=
+
+function anc_echo
+{
+    echo "$@"
+
+    if [[ "$ANC_SAVE_ECHO" == "TRUE" ]]
+    then
+        local S="$@"
+        ANC_ECHO_CACHE="$ANC_ECHO_CACHE"$(eval printf '%.0s\ ' {1..${#S}})"\n"
+    fi
+}
+
+function anc_interactive
+{
+    local CURLINE=0
+    local CURCOL=0
+    local NUM
+
+    anc_read_cursor_position
+
+    #fixes buffer bug
+    anc_move_left 50
+
+    ANC_VERBOSE_CACHE=
+    ANC_ECHO_CACHE=
+    ANC_SAVE_ECHO="TRUE"
+
+    anc_list
+    anc_echo "--------------"
+    anc_echo -n "Jump to anchor number: "
+    read NUM
+    if [[ $(anc_is_number "$NUM") == "TRUE" ]]
+    then
+        anc_list_jump "j" "$NUM"
+    else
+        anc_verbose "Not a number"
+    fi
+
+    ANC_SAVE_ECHO=
+
+    #erase
+    #set cursor position to where it was when the position was last read
+    anc_set_cursor_position $CURCOL $CURLINE
+    echo -ne "$ANC_ECHO_CACHE"
+    anc_set_cursor_position $CURCOL $CURLINE
+    
+    echo -ne "$ANC_VERBOSE_CACHE"
+
+    ANC_VERBOSE_CACHE=
+}
+
+function anc_list_grep_jump
+{
+    cp "$HOME/.anc_list" "$HOME/.anc_tmp"
+
+    local MATCH=
+    for string in "$@"
+    do
+        fgrep -i "$string" "$HOME/.anc_tmp" 2> /dev/null > "$HOME/.anc_tmp2"
+        mv "$HOME/.anc_tmp2" "$HOME/.anc_tmp" 2> /dev/null
+        MATCH=$(head -n1 "$HOME/.anc_tmp" 2> /dev/null)
+
+        if [[ "$MATCH" == "" ]]
+        then
+            anc_verbose "No match"
+            return
+        fi
+    done
+
+    rm -f "$HOME/.anc_tmp2" "$HOME/.anc_tmp" 2> /dev/null
+
+    #if $MATCH is a directory 
+    if [[ -d "$MATCH" ]]
+    then
+        anc_cd "$MATCH"
+    else
+        anc_verbose "Directory \"$MATCH\" from anchor list matches \"$1\", but there's no such directory on your system."
+    fi
+}
+
+function anc_list_jump
+{
+    local PAR=$1
+    local FIRST=${PAR:0:1}
+    local REST=${PAR:1}
+    local REST2=${PAR:2}
+
+    if [[ "$FIRST" == "j" && $(anc_is_number $REST) == "TRUE" ]]
+    then
+        PAR=$REST
+    else
+        PAR=$2
+    fi
+
+    if [[ "$FIRST" == "-" && $(anc_is_number $REST2) == "TRUE" ]]
+    then
+        PAR=$REST2
+    fi
+
+    if [[ "$1" == "-1" && "$2" == "-1" ]]
+    then
+        PAR=$(($(wc -l < $HOME/.anc_list)-1))
+    fi
+
+	if [[ "$PAR" == "" ]]
+	then
+		echo "Usage: anc j NUMBER"
+		echo "       get number with:"
+		echo "       anc h"
+	else
+        local FOUND="false"
+        if [[ -e "$HOME/.anc_list" && "$PAR" != "-1" ]]
+        then
+		    local CNT="0"
+            local hl
+		    while read hl; do
+			    if [[ "$CNT" == "$PAR" ]]
+			    then
+				    anc_cd "$hl"
+                    FOUND="true"
+				    break;
+			    fi
+			    CNT=$((CNT+1))
+		    done <$HOME/.anc_list
+        fi  
+        if [[ "$FOUND" == "false" ]]
+        then
+            anc_echo "No such anchor in list. Type anc l to view list."
+        fi
+	fi
+}
+
+function anc_config_help
+{
+    local help
+    read -d '' help <<- EOF
+anc's config is a text file with the location ~/.anc_config
+
+Example:
+        To set ANC_VERBOSE to enabled
+        add this line in the config:
+ANC_VERBOSE=TRUE
+
+Supported config options:
+        ANC_VERBOSE
+        ANC_DEBUG
+EOF
+    echo "$help"
+}
+
+function anc_help
+{
+    local help
+    read -d '' help <<- EOF
+Usage: anc [OPTIONS]
+
+Changes directory to one of the previously set anchors.
+Jumps to current default anchor with no options given.
+
+First the user has to set one or more anchor directories
+to jump between. See options (and --examples) below.
+
+Note that for all short options like -s, -v and -b,
+you can alternatively type s, v and b without the dash.
+
+Likewise for long options like --clear or --version
+you can type clear or version.
+
+Options:
+  -s DIR         Set DIR as default anchor. [default: current directory]
+  -a DIR         Adds DIR to anchor list, but doesn't
+                 set DIR as default anchor. [default: current directory]
+  -r DIR         Removes DIR from anchor list. [default: current directory]
+  -v             View current default anchor.
+  -g TEXT        Compares anchor paths with text and jumps
+                 to first match.
+  -j NUM         Jump to anchor NUM in anchor list.
+  -i             Interactive anchor jumping.
+  -1             Jump to last anchor in anchor list.
+  -b             Go back to previous directory.
+  -l, --list     Print list of set anchors.
+  --clear        Clear anchor list.
+  --install      Install anc in bashrc.
+  --config-help  Print configuration help.
+  --examples     Print examples.
+  -h, --help     Print this help message.
+  --version      Print version information.
+
+Project <http://github.com/tobimensch/anc/>.
+EOF
+    echo "$help"
+}
+
+function anc_examples
+{
+    local help
+    read -d '' help <<- EOF
+Examples:
+    # make the current directory the default anchor:
+    $ anc s
+
+    # go to /etc and then back to the default anchor:
+    $ cd /etc; anc
+
+    # go back to /etc :
+    $ anc b
+
+    # add another anchor :
+    $ anc a $HOME/test
+
+    # view the list of anchors (the default one has the asterisk):
+    $ anc l
+    (0) /path/to/first/anchor *
+    (1) $HOME/test
+
+    # jump to the anchor we added:
+    $ anc j1
+
+EOF
+    echo "$help"
+}
+
+function anc_version
+{
+    local version
+    read -d '' version <<- EOF
+anc $ANC_VERSION
+MIT License, Copyright (C) 2016 Tobias Gläßer
+Project <http://github.com/tobimensch/anc/>.
+EOF
+    echo "$version"
+}
+
+
+function anc_default
+{
+	anc_debug "get anchor"
+	ANCHOR=$(anc_get_anchor)
+
+    if [[ "$ANCHOR" == "" ]]
+    then
+        echo "No anchor was set. Set with anc s. Type anc -h for details."
+    else
+        anc_cd $ANCHOR
+    fi
+}
+
+anc_read_config
+
+if   [[ "$1" == "s"       || "$1" == "set"   || "$1" == "-s"                  ]]
+then
+	anc_set_anchor $2
+elif   [[ "$1" == "a"       || "$1" == "add"   || "$1" == "-a"                  ]]
+then
+	anc_add_anchor $2
+elif   [[ "$1" == "r"       || "$1" == "remove"   || "$1" == "-r"                  ]]
+then
+	anc_remove_anchor $2
+elif   [[ "$1" == "b"     || "$1" == "back"  || "$1" == "-b"                  ]]
+then
+	anc_back
+elif   [[ "$1" == "g"     || "$1" == "grep"  || "$1" == "--grep"               ]]
+then
+	anc_list_grep_jump "${@:1}"
+elif [[ "$1" == "v"       || "$1" == "c"       || "$1" == "view"  || "$1" == "info" ||
+        "$1" == "current" || "$1" == "get"                                    ]]
+then
+    echo -n "Current anchor: "
+    anc_get_anchor
+elif [[ "$1" == "l" || "$1" == "-l"       || "$1" == "list" || "$1" == "--list" ]]
+then
+    anc_list
+elif [[ "$1" == j*        || "$1" == "j"     || "$1" == "jump" ||
+        "$1" == -j*       || "$1" == "list-jump"                           ]]
+then
+    anc_list_jump $1 $2
+elif [[ "$1" == "-1"                                               ]]
+then
+    anc_list_jump $1 "-1"
+elif [[ "$1" == "-i" || "$1" == "--interactive" || "$1" == "i"                ]]
+then
+    anc_interactive
+elif [[ "$1" == "--config-help"                                               ]]
+then
+    anc_config_help
+elif [[ "$1" == "help"    || "$1" == "-h"    || "$1" == "--help" || "$1" == "h" ]]
+then
+    anc_help
+elif [[ "$1" == "examples"  || "$1" == "--examples"                             ]]
+then
+    anc_examples
+elif [[ "$1" == "--clear"                                                   ]]
+then
+    anc_clear_list
+elif [[ "$1" == "--version"                                                   ]]
+then
+    anc_version
+elif [[ "$1" == "install" || "$1" == "setup" || "$1" == "--install"           ]]
+then
+    echo "Installing anc"
+    echo
+    echo "  Add the following line to your ~/.bashrc:"
+    echo '  alias anc=". /absolute/path/to/anc"'
+    echo
+    echo "  It's required to use the absolute path, because a file"
+    echo "  named anc in the current directory could otherwise"
+    echo "  get loaded mistakenly."
+    echo
+    echo '  Note that the ". " portion of the string in front of'
+    echo "  /absolute/path/to/anc is not optional and must be"
+    echo "  included in the alias for anc to function correctly."
+else
+    anc_default
+fi
+
+anc_unset
+
+

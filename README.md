@@ -33,7 +33,7 @@ Examples:
     # jump to the anchor we just added:
     # by using its anchor number
     $ anc j1
-    # or by jumping to the last anchor in the list:
+    # or by jumping to the last anchor in the list
     $ anc -1
 
     # add multiple anchors:

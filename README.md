@@ -28,7 +28,7 @@ Examples:
     # view the list of anchors (the default one has the asterisk):
     $ anc l
     (0) /path/to/first/anchor *
-    (1) $HOME/test
+    (1) /home/user/test
 
     # jump to the anchor we just added:
     # by using its anchor number

@@ -41,6 +41,43 @@ function anc_unset
     unset ANC_VERSION
     #global var ANC_BACK is the exception to the rule
     #it holds the last directory the user was in before anc changed it with anc
+
+    #remove all anc functions from global shell namespace
+    unset anc_abspath
+    unset anc_add_anchor
+    unset anc_add_anchors
+    unset anc_back
+    unset anc_cd
+    unset anc_clear_list
+    unset anc_config_help
+    unset anc_debug
+    unset anc_default
+    unset anc_echo
+    unset anc_examples
+    unset anc_file_size
+    unset anc_format_dir
+    unset anc_get_anchor
+    unset anc_help
+    unset anc_interactive
+    unset anc_is_number
+    unset anc_list
+    unset anc_list_find
+    unset anc_list_grep_jump
+    unset anc_list_it
+    unset anc_list_jump
+    unset anc_move_left
+    unset anc_read_config
+    unset anc_read_cursor_position
+    unset anc_read_list
+    unset anc_remove_anchor
+    unset anc_remove_anchor_it
+    unset anc_remove_anchors
+    unset anc_set_anchor
+    unset anc_set_cursor_position
+    unset anc_startswith
+    unset anc_unset
+    unset anc_verbose
+    unset anc_version
 }
 
 function anc_debug
@@ -641,7 +678,7 @@ EOF
 function anc_default
 {
 	anc_debug "get anchor"
-	ANCHOR=$(anc_get_anchor)
+	local ANCHOR=$(anc_get_anchor)
 
     if [[ "$ANCHOR" == "" ]]
     then

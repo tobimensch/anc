@@ -143,7 +143,7 @@ function anc_set_anchor
 
     if ! [[ -d "$DIR" ]]
     then
-        anc_verbose "Not a directory"
+        anc_verbose "$DIR not a directory"
         return
     fi
 
@@ -181,7 +181,7 @@ function anc_add_anchor
 
     if ! [[ -d "$DIR" ]]
     then
-        anc_verbose "Not a directory"
+        anc_verbose "$DIR not a directory"
         return
     fi
 
@@ -228,6 +228,7 @@ function anc_remove_anchor
     rm -f "$HOME/.anc_tmp"
     touch "$HOME/.anc_tmp"
     anc_read_list anc_remove_anchor_it "$1"
+
     if [[ $(anc_file_size "$HOME/.anc_tmp") != $(anc_file_size "$HOME/.anc_list") ]]
     then
         mv "$HOME/.anc_tmp" "$HOME/.anc_list"
@@ -271,15 +272,32 @@ function anc_list_find
     echo -n "false"
 }
 
+function anc_format_dir
+{
+    local d="$1"
+    if $(anc_startswith "$d" "$HOME")
+    then
+        echo "~"${d:${#HOME}}
+    fi
+}
+
 function anc_list_it
 {
 	local ANCHOR=$(anc_get_anchor)
-    if [[ "$1" == "$ANCHOR" ]]
+    local ext
+
+    if [[ "$1" == "$PWD" && "$1" == "$ANCHOR" ]]
     then
-        anc_echo "("$2")" $1 "*" 
-    else
-		anc_echo "("$2")" $1
+        ext=".=*"
+    elif [[ "$1" == "$PWD" ]]
+    then
+        ext="."
+    elif [[ "$1" == "$ANCHOR" ]]
+    then
+        ext="*"
     fi
+	
+    anc_echo "("$2") "$(anc_format_dir "$1")"\t$ext"
 }
 
 function anc_clear_list
@@ -378,7 +396,7 @@ ANC_ECHO_CACHE=
 
 function anc_echo
 {
-    echo "$@"
+    echo -e "$@"
 
     if [[ "$ANC_SAVE_ECHO" == "TRUE" ]]
     then

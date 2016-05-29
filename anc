@@ -78,6 +78,8 @@ function anc_unset
     unset anc_unset
     unset anc_verbose
     unset anc_version
+    unset anc_install
+    unset anc_view_anchor
 }
 
 function anc_debug
@@ -206,6 +208,11 @@ function anc_add_anchors
     do
         anc_add_anchor "$anc"
     done
+
+    if [[ ${#@} -eq 0 ]]
+    then
+        anc_add_anchor
+    fi 
 }
 
 function anc_add_anchor
@@ -252,6 +259,11 @@ function anc_remove_anchors
     do
         anc_remove_anchor "$anc"
     done
+
+    if [[ ${#@} -eq 0 ]]
+    then
+        anc_remove_anchor "$PWD"
+    fi 
 }
 
 function anc_remove_anchor
@@ -674,6 +686,26 @@ EOF
     echo "$version"
 }
 
+function anc_install
+{
+    local help
+    read -d '' help <<- EOF
+Installing anc
+
+  Add the following line to your ~/.bashrc:
+  alias anc=". /absolute/path/to/anc"
+
+  It's required to use the absolute path, because a file
+  named anc in the current directory could otherwise
+  get loaded mistakenly.
+
+  Note that the ". " portion of the string in front of
+  /absolute/path/to/anc is not optional and must be
+  included in the alias for anc to function correctly.
+EOF
+    echo "$help"
+}
+
 
 function anc_default
 {
@@ -688,28 +720,33 @@ function anc_default
     fi
 }
 
+function anc_view_anchor
+{
+    echo -n "Current anchor: "
+    anc_get_anchor
+}
+
 anc_read_config
 
 if   [[ "$1" == "s"       || "$1" == "set"   || "$1" == "-s"                  ]]
 then
 	anc_set_anchor "$2"
-elif   [[ "$1" == "a"       || "$1" == "add"   || "$1" == "-a"                  ]]
+elif [[ "$1" == "a"       || "$1" == "add"   || "$1" == "-a"                  ]]
 then
 	anc_add_anchors "${@:2}"
-elif   [[ "$1" == "r"       || "$1" == "remove"   || "$1" == "-r"                  ]]
+elif [[ "$1" == "r"       || "$1" == "remove"   || "$1" == "-r"                  ]]
 then
 	anc_remove_anchors "${@:2}"
-elif   [[ "$1" == "b"     || "$1" == "back"  || "$1" == "-b"                  ]]
+elif [[ "$1" == "b"     || "$1" == "back"  || "$1" == "-b"                  ]]
 then
 	anc_back
-elif   [[ "$1" == "g"     || "$1" == "grep"  || "$1" == "--grep" || "$1" == "-g"    ]]
+elif [[ "$1" == "g"     || "$1" == "grep"  || "$1" == "--grep" || "$1" == "-g"    ]]
 then
 	anc_list_grep_jump "${@:2}"
 elif [[ "$1" == "v"       || "$1" == "c"       || "$1" == "view"  || "$1" == "info" ||
         "$1" == "current" || "$1" == "get"                                    ]]
 then
-    echo -n "Current anchor: "
-    anc_get_anchor
+    anc_view_anchor
 elif [[ "$1" == "l" || "$1" == "-l"       || "$1" == "list" || "$1" == "--list" ]]
 then
     anc_list
@@ -740,18 +777,7 @@ then
     anc_version
 elif [[ "$1" == "install" || "$1" == "setup" || "$1" == "--install"           ]]
 then
-    echo "Installing anc"
-    echo
-    echo "  Add the following line to your ~/.bashrc:"
-    echo '  alias anc=". /absolute/path/to/anc"'
-    echo
-    echo "  It's required to use the absolute path, because a file"
-    echo "  named anc in the current directory could otherwise"
-    echo "  get loaded mistakenly."
-    echo
-    echo '  Note that the ". " portion of the string in front of'
-    echo "  /absolute/path/to/anc is not optional and must be"
-    echo "  included in the alias for anc to function correctly."
+    anc_install
 else
     anc_default
 fi

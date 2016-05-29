@@ -80,6 +80,7 @@ function anc_unset
     unset anc_version
     unset anc_install
     unset anc_view_anchor
+    unset anc_sort
 }
 
 function anc_debug
@@ -624,6 +625,7 @@ Options:
   -b             Go back to previous directory.
   -l, --list     Print list of set anchors.
   --clear        Clear anchor list.
+  --sort         Sort all anchors by path.
   --install      Install anc in bashrc.
   --config-help  Print configuration help.
   --examples     Print examples.
@@ -726,6 +728,14 @@ function anc_view_anchor
     anc_get_anchor
 }
 
+function anc_sort
+{
+    rm -f "$HOME/.anc_tmp"
+    touch "$HOME/.anc_tmp"
+    sort 2> /dev/null < "$HOME/.anc_list"  > "$HOME/.anc_tmp"
+    mv "$HOME/.anc_tmp" "$HOME/.anc_list"
+}
+
 anc_read_config
 
 if   [[ "$1" == "s"       || "$1" == "set"   || "$1" == "-s"                  ]]
@@ -772,6 +782,9 @@ then
 elif [[ "$1" == "--clear"                                                   ]]
 then
     anc_clear_list
+elif [[ "$1" == "--sort"                                                   ]]
+then
+    anc_sort
 elif [[ "$1" == "--version"                                                   ]]
 then
     anc_version

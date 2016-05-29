@@ -76,6 +76,7 @@ Options:
   -b             Go back to previous directory.
   -l, --list     Print list of set anchors.
   --clear        Clear anchor list.
+  --sort         Sort all anchors by path.
   --install      Install anc in bashrc.
   --config-help  Print configuration help.
   --examples     Print examples.

@@ -446,7 +446,7 @@ function anc_list_it
         ext="*"
     fi
 	
-    anc_echo "("$2") "$(anc_format_dir "$1")"\t$ext"
+    anc_echo "("$(anc_pad_zero $2)") "$(anc_format_dir "$1")"\t$ext"
 }
 
 function anc_clear_list
@@ -465,8 +465,30 @@ function anc_list
 	fi
 }
 
+function anc_pad_zero
+{
+    if [[ $total -gt "10" ]]
+    then
+        printf "%02d" "$1"
+    elif [[ $total -gt "100" ]]
+    then
+        printf "%03d" "$1"
+    elif [[ $total -gt "1000" ]]
+    then
+        printf "%04d" "$1"
+    elif [[ $total -gt "10000" ]]
+    then
+        printf "%05d" "$1"
+    elif [[ $total -gt "100000" ]] #this is very unlikely to happen
+    then
+        printf "%06d" "$1"
+    fi
+
+}
+
 function anc_read_list
 {
+        local total=$(wc -l 2> /dev/null < "$HOME/.anc_list")
 		local CNT="0"
         local hl
 		while read hl; do

@@ -622,6 +622,11 @@ function anc_list_grep_jump
     local MATCH=
     for string in "$@"
     do
+        if [[ "${string:0:1}" == "-" ]]
+        then
+            string=${string:1}
+        fi
+
         fgrep -i "$string" "$HOME/.anc_tmp" 2> /dev/null > "$HOME/.anc_tmp2"
         mv "$HOME/.anc_tmp2" "$HOME/.anc_tmp" 2> /dev/null
         MATCH=$(head -n1 "$HOME/.anc_tmp" 2> /dev/null)
@@ -719,6 +724,7 @@ function anc_help
     local help
     read -d '' help <<- EOF
 Usage: anc [OPTIONS]
+       anc ( <NUM> | <TEXT> )
 
 Changes directory to one of the previously set anchors.
 Jumps to current default anchor with no options given.
@@ -728,9 +734,18 @@ to jump between. See options (and --examples) below.
 
 Note that for all short options like -s, -v and -b,
 you can alternatively type s, v and b without the dash.
+(-1 is an exception to the rule, because 1 is for jumping
+to the second anchor in the list.)
 
 Likewise for long options like --clear or --version
 you can type clear or version.
+
+If the first parameter is a number it is equivalent to:
+  anc -j NUM
+
+If the first parameter is text and it doesn't conflict with
+any of the options it is equivalent to:
+  ang -g TEXT...
 
 Options:
   -s DIR         Set DIR as default anchor. [default: current directory]
@@ -888,6 +903,9 @@ then
 elif [[ "$1" == "-1"                                               ]]
 then
     anc_list_jump $1 "-1"
+elif [[ $(anc_is_number "$1") == "TRUE" ]]
+then
+    anc_list_jump "j" $1
 elif [[ "$1" == "-i" || "$1" == "--interactive" || "$1" == "i"                ]]
 then
     anc_interactive
@@ -912,6 +930,9 @@ then
 elif [[ "$1" == "install" || "$1" == "setup" || "$1" == "--install"           ]]
 then
     anc_install
+elif [[ $1 != "" ]]
+then
+	anc_list_grep_jump "${@:1}"
 else
     anc_default
 fi

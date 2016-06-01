@@ -781,7 +781,7 @@ Examples:
     # make the current directory the default anchor:
     $ anc s
 
-    # go to /etc, then /, then /usr/bin and then back to the default anchor:
+    # go to /etc, then /, then /usr/local and then back to the default anchor:
     $ cd /etc; cd ..; cd usr/local; anc
 
     # go back to /usr/local :
@@ -797,7 +797,7 @@ Examples:
 
     # jump to the anchor we just added:
     # by using its anchor number
-    $ anc j1
+    $ anc 1
     # or by jumping to the last anchor in the list
     $ anc -1
 
@@ -805,10 +805,10 @@ Examples:
     $ anc a $HOME/projects/first $HOME/projects/second $HOME/documents/first
 
     # use text matching to jump to $HOME/projects/first
-    $ anc g pro fir
+    $ anc pro fir
 
     # use text matching to jump to $HOME/documents/first
-    $ anc g doc fir
+    $ anc doc fir
 EOF
     echo "$help"
 }

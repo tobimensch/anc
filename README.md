@@ -16,7 +16,7 @@ Examples:
     # make the current directory the default anchor:
     $ anc s
 
-    # go to /etc, then /, then /usr/bin and then back to the default anchor:
+    # go to /etc, then /, then /usr/local and then back to the default anchor:
     $ cd /etc; cd ..; cd usr/local; anc
 
     # go back to /usr/local :
@@ -28,11 +28,11 @@ Examples:
     # view the list of anchors (the default one has the asterisk):
     $ anc l
     (0) /path/to/first/anchor *
-    (1) /home/user/test
+    (1) /home/usr/test
 
     # jump to the anchor we just added:
     # by using its anchor number
-    $ anc j1
+    $ anc 1
     # or by jumping to the last anchor in the list
     $ anc -1
 
@@ -40,15 +40,16 @@ Examples:
     $ anc a $HOME/projects/first $HOME/projects/second $HOME/documents/first
 
     # use text matching to jump to $HOME/projects/first
-    $ anc g pro fir
+    $ anc pro fir
 
     # use text matching to jump to $HOME/documents/first
-    $ anc g doc fir
+    $ anc doc fir
 ```
 
 anc -h
 ```
 Usage: anc [OPTIONS]
+       anc ( <NUM> | <TEXT> )
 
 Changes directory to one of the previously set anchors.
 Jumps to current default anchor with no options given.
@@ -58,9 +59,18 @@ to jump between. See options (and --examples) below.
 
 Note that for all short options like -s, -v and -b,
 you can alternatively type s, v and b without the dash.
+(-1 is an exception to the rule, because 1 is for jumping
+to the second anchor in the list.)
 
 Likewise for long options like --clear or --version
 you can type clear or version.
+
+If the first parameter is a number it is equivalent to:
+  anc -j NUM
+
+If the first parameter is text and it doesn't conflict with
+any of the options it is equivalent to:
+  ang -g TEXT...
 
 Options:
   -s DIR         Set DIR as default anchor. [default: current directory]
@@ -82,6 +92,8 @@ Options:
   --examples     Print examples.
   -h, --help     Print this help message.
   --version      Print version information.
+
+Project <http://github.com/tobimensch/anc/>.
 ```
 
 anc is licensed under the MIT license.

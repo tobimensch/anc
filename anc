@@ -81,6 +81,7 @@ function anc_unset
     unset anc_install
     unset anc_view_anchor
     unset anc_sort
+    unset anc_pad_zero
 
     #realpath
     unset anc_realpath
@@ -619,6 +620,7 @@ function anc_list_grep_jump
 {
     cp "$HOME/.anc_list" "$HOME/.anc_tmp"
 
+    local string=
     local MATCH=
     for string in "$@"
     do

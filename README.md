@@ -62,9 +62,6 @@ you can alternatively type s, v and b without the dash.
 (-1 is an exception to the rule, because 1 is for jumping
 to the second anchor in the list.)
 
-Likewise for long options like --clear or --version
-you can type clear or version.
-
 If the first parameter is a number it is equivalent to:
   anc -j NUM
 

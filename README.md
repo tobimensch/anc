@@ -62,12 +62,17 @@ you can alternatively type s, v and b without the dash.
 (-1 is an exception to the rule, because 1 is for jumping
 to the second anchor in the list.)
 
-If the first parameter is a number it is equivalent to:
+If the first parameter is a number and there are no other
+parameters, it is equivalent to:
   anc -j NUM
 
 If the first parameter is text and it doesn't conflict with
-any of the options it is equivalent to:
-  ang -g TEXT...
+any of the options, it is equivalent to:
+  anc -g TEXT...
+
+If the first parameter is a number and there are multiple
+parameters, it is equivalent to:
+  anc -g TEXT TEXT...
 
 Options:
   -s DIR         Set DIR as default anchor. [default: current directory]

@@ -499,7 +499,10 @@ function anc_list
 
 function anc_pad_zero
 {
-    if [[ $total -gt "10" ]]
+    if [[ $total -lt "11" ]]
+    then
+        printf "%01d" "$1"
+    elif [[ $total -gt "10" ]]
     then
         printf "%02d" "$1"
     elif [[ $total -gt "100" ]]

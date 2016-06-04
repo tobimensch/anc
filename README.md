@@ -5,14 +5,16 @@ as easy and as natural as possible.
 
 Installation:
  1. Download anc.
- 2. Put this line into ~/.bashrc 
-    ```alias anc=". /absolute/path/to/anc"```
+ 2. Put these two lines into ~/.bashrc 
+    ```alias anc=". /absolute/path/to/anc"
+       anc --init-completion```
 
 > Note: Anchors are directories between which the user wants to jump back and forth.
 anc saves the list of anchors in ~/.anc_list. The current default anchor is saved in ~/.anc .
 
 Examples:
 ```
+Examples:
     # make the current directory the default anchor:
     $ anc s
 
@@ -44,12 +46,30 @@ Examples:
 
     # use text matching to jump to $HOME/documents/first
     $ anc doc fir
+
+    # add anchor and jump to it using an absolute path
+    $ anc /etc
+    # is the same as
+    $ anc a /etc; anc -1
+
+    # add anchor and jump to it using a relative path
+    $ anc ./X11 #note that "./" is required for relative paths
+    # is the same as
+    $ anc a X11; anc -1
+
+    # using wildcards you can add many anchors at once
+    $ anc a $HOME/projects/*
+    
+    # use shell completion to see a list of matching anchors
+    # and select the one you want to jump to directly
+    $ anc pro[TAB]
 ```
 
 anc -h
 ```
 Usage: anc [OPTIONS]
        anc ( <NUM> | <TEXT> )
+       anc <PATH>
 
 Changes directory to one of the previously set anchors.
 Jumps to current default anchor with no options given.
@@ -73,6 +93,10 @@ any of the options, it is equivalent to:
 If the first parameter is a number and there are multiple
 parameters, it is equivalent to:
   anc -g TEXT TEXT...
+
+If the first parameter is either an existing absolute path
+or an existing relative path starting with ./ or ../, anc will
+add it to the anchors list and jump to it immediately.
 
 Options:
   -s DIR         Set DIR as default anchor. [default: current directory]

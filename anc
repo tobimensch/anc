@@ -39,10 +39,12 @@ function anc_unset
     unset ANC_SAVE_ECHO
     unset ANC_ECHO_CACHE
     unset ANC_VERSION
+    unset ANC_LIST_GREP_CACHE
     #global var ANC_BACK is the exception to the rule
     #it holds the last directory the user was in before anc changed it with anc
 
     #remove all anc functions from global shell namespace
+    #this also happens to be a handy list of functions
     unset anc_abspath
     unset anc_add_anchor
     unset anc_add_anchors
@@ -63,6 +65,7 @@ function anc_unset
     unset anc_list
     unset anc_list_find
     unset anc_list_grep_jump
+    unset anc_list_grep_matches
     unset anc_list_it
     unset anc_list_jump
     unset anc_move_left
@@ -82,6 +85,18 @@ function anc_unset
     unset anc_view_anchor
     unset anc_sort
     unset anc_pad_zero
+    unset anc_path_jump
+    unset anc_is_completion
+    unset anc_main
+    unset anc_ttyecho
+    unset anc_clear_bottom
+    unset anc_init_completion
+    unset anc_interactive_match_list
+    unset anc_get_line
+    unset anc_list_grep_matches_formated
+    unset anc_list_grep_matches_formated_impl
+    unset anc_skip_test
+    unset anc_trap_ctrl_c
 
     #realpath
     unset anc_realpath
@@ -235,6 +250,13 @@ function anc_cd
     else
         anc_verbose "Already in: "$1
     fi
+}
+
+function anc_path_jump
+{
+    echo "path jump"
+    anc_add_anchor "$1"
+    anc_cd "$1"
 }
 
 function anc_back
@@ -424,10 +446,11 @@ function anc_list_find
 
 function anc_format_dir
 {
-    local d="$1"
-    if $(anc_startswith "$d" "$HOME")
+    if anc_startswith "$1" "$HOME"
     then
-        echo "~"${d:${#HOME}}
+        echo "~${1:${#HOME}}"
+    else
+        echo "$1"
     fi
 }
 
@@ -435,6 +458,7 @@ function anc_list_it
 {
 	local ANCHOR=$(anc_get_anchor)
     local ext
+    local string
 
     if [[ "$1" == "$PWD" && "$1" == "$ANCHOR" ]]
     then
@@ -445,9 +469,16 @@ function anc_list_it
     elif [[ "$1" == "$ANCHOR" ]]
     then
         ext="*"
+    fi	
+
+    string="("$(anc_pad_zero $2)") "$(anc_format_dir "$1")$'    '"$ext"
+    output="$output"$'\n'"$string"
+
+    if [[ "${#string}" -gt "$maxlen" ]]
+    then
+        maxlen=${#string}
     fi
-	
-    anc_echo "("$(anc_pad_zero $2)") "$(anc_format_dir "$1")"\t$ext"
+    #anc_echo "$string"
 }
 
 function anc_clear_list
@@ -492,6 +523,9 @@ function anc_read_list
         local total=$(wc -l 2> /dev/null < "$HOME/.anc_list")
 		local CNT="0"
         local hl
+        local maxlen="0"
+        local output
+
 		while read hl; do
             if [[ $hl == "" ]] #skip empty lines
             then
@@ -501,11 +535,48 @@ function anc_read_list
 			$1 $hl $CNT $2
 			CNT=$((CNT+1))
 		done <$HOME/.anc_list
+
+        if [[ "$output" == "" ]]
+        then
+            return
+        fi
+
+        if hash column 2>/dev/null
+        then
+            output=$(echo "$output" | column -c $COLUMNS)
+            anc_echo "$output"
+        else
+            # fallback to a simple two-column solution, in cases where column isn't installed
+            local line
+            local len
+            local space
+            space=$(printf '%*s' "$maxlen")
+            CNT=0
+
+            while read -r line; do
+                if [[ $line == "" ]]
+                then
+                    continue
+                fi
+                if [[ $((CNT%2)) == "1" ]]
+                then
+                    printf "%s %s" "$line" "${space:${#line}}"
+                else
+                    echo -n "$line"$'\n'
+                fi
+                CNT=$((CNT+1))
+            done <<< "$output"
+
+            if [[ $((CNT%2)) == "0" ]]
+            then
+                echo
+            fi
+        fi
 }
 
 function anc_startswith
 {
-    [[ $1 == $2* ]]
+    [[ "${1:0:${#2}}" == "$2" ]]
 }
 
 function anc_read_config
@@ -616,12 +687,20 @@ function anc_interactive
     ANC_VERBOSE_CACHE=
 }
 
-function anc_list_grep_jump
+ANC_LIST_GREP_CACHE=
+
+function anc_list_grep_matches
 {
+    if [[ "$ANC_LIST_GREP_CACHE" != "" ]]
+    then
+        echo "$ANC_LIST_GREP_CACHE"
+        return
+    fi
+
     cp "$HOME/.anc_list" "$HOME/.anc_tmp"
 
     local string=
-    local MATCH=
+    local MATCHES=
     for string in "$@"
     do
         if [[ "${string:0:1}" == "-" ]]
@@ -631,16 +710,224 @@ function anc_list_grep_jump
 
         fgrep -i "$string" "$HOME/.anc_tmp" 2> /dev/null > "$HOME/.anc_tmp2"
         mv "$HOME/.anc_tmp2" "$HOME/.anc_tmp" 2> /dev/null
-        MATCH=$(head -n1 "$HOME/.anc_tmp" 2> /dev/null)
+        MATCHES=$(cat "$HOME/.anc_tmp" 2> /dev/null)
 
-        if [[ "$MATCH" == "" ]]
+        if [[ "$MATCHES" == "" ]]
         then
-            anc_verbose "No match"
             return
         fi
     done
 
     rm -f "$HOME/.anc_tmp2" "$HOME/.anc_tmp" 2> /dev/null
+
+    ANC_LIST_GREP_CACHE="$MATCHES"
+    echo "$MATCHES"
+}
+
+function anc_list_grep_matches_formated
+{
+    if [[ ! -z "$ANC_LIST_GREP_CFORMAT" ]]
+    then
+        echo "$ANC_LIST_GREP_CFORMAT"
+        return
+    fi
+
+    ANC_LIST_GREP_CFORMAT=$(anc_list_grep_matches_formated_impl "$@")
+    echo "$ANC_LIST_GREP_CFORMAT"
+}
+
+function anc_list_grep_matches_formated_impl
+{
+    while read -r MATCH
+    do
+        anc_format_dir "$MATCH"
+    done <<< "$(anc_list_grep_matches "$@")"
+}
+
+function anc_clear_bottom
+{
+    #go diff lines down and erase them all
+    local buff=
+    local linep="$CURLINE"
+    while [[ "$linep" -lt $(tput lines) ]]
+    do
+        buff="$buff""$CSI""1B"$'\e[K'
+        linep=$((linep+1))
+    done
+    echo -ne "$buff"
+}
+
+function anc_get_line
+{
+    local lines="$1"
+    local line=
+    local num="$2"
+    local cnt="0"
+    while read -r line
+    do
+        if [[ "$cnt" == "$num" ]]
+        then
+            echo "$line"
+            return
+        fi
+        cnt=$((cnt+1))
+    done <<< "$lines"
+}
+
+function anc_interactive_match_list
+{
+    local mcnt="0"
+    local buff=$'\n'
+    local max=
+    local MATCH
+    local diff
+    ((max=term_lines-2))
+
+    while read -r MATCH
+    do
+        if ((mcnt==lnm))
+        then
+            buff="$buff"$'\e[K'$'\e[47;30m'$MATCH$'\n'$'\e[0m'
+        else            
+            buff="$buff"$'\e[K'$MATCH$'\n'
+        fi
+        if ((mcnt+=1,mcnt==max))
+        then
+            break
+        fi
+    done <<< "$(anc_list_grep_matches_formated "$@")"
+
+    echo -en "$buff"
+
+    if ((diff=term_lines-CURLINE-mcnt,diff<0))
+    then
+        ((CURLINE=CURLINE+diff-1))
+    fi
+}
+
+function anc_ttyecho
+{
+    read -d '' perlcode <<- EOF
+require "sys/ioctl.ph";
+ioctl(STDIN, &TIOCSTI, \$_) for split "", join " ", @ARGV;
+EOF
+
+    echo "$perlcode" > /tmp/perlttyecho
+    perl /tmp/perlttyecho "$@" 2> /dev/null
+    rm -f /tmp/perlttyecho
+}
+
+function anc_list_grep_jump
+{
+    if anc_is_completion
+    then
+       # Pointer to current completion word.
+        # By convention, it's named "cur" but this isn't strictly necessary.
+
+        local CURLINE=0
+        local CURCOL=0
+        local NUM
+        local CSI="\e["
+        local lnm="0"
+        local x
+        local y
+        local lnm
+        local code
+        local dir
+        local selection
+        local term_lines=$(tput lines)
+        local ANC_LIST_GREP_CFORMAT=
+
+        anc_read_cursor_position
+
+        #fixes buffer bug
+        anc_move_left 50
+
+        anc_clear_bottom
+
+        anc_set_cursor_position $CURCOL $CURLINE
+
+        #called here for caching
+        anc_list_grep_matches_formated "$@" > /dev/null
+
+        anc_interactive_match_list "$@"
+        
+        #hide cursor
+        echo -en $CSI"?25l"
+
+        local selection=
+
+        read -n 1 x
+        if [[ "$x" == $'\e' ]]
+        then
+            while true
+            do
+                read -n 1 x
+                read -n 1 y
+                code="$x$y"
+                if [ "$code" = "[A" ] || [ "$code" = "OA" ] #arrow up
+                then
+                    #echo "key_arrow_up"
+                    ((lnm-=1))
+                    #anc_clear_bottom
+                    anc_set_cursor_position $CURCOL $CURLINE
+                    anc_interactive_match_list "$@"
+                elif [ "$code" = "[B" ] || [ "$code" = "OB" ] #arrow down
+                then
+                    #echo "key_arrow_down"
+                    ((lnm+=1))
+                    #anc_clear_bottom
+                    anc_set_cursor_position $CURCOL $CURLINE
+                    anc_interactive_match_list "$@"
+                fi
+                #echo $x
+                
+                IFS= read -d $'\4' -rsn 1 x
+                #echo ":""$x""/"
+                if [[ "$x" == $'\n' || "$x" == ' ' ]]
+                then
+                    selection=$lnm
+                    break
+                elif [[ "$x" != $'\e' ]]
+                then
+                    break
+                fi
+            done
+        fi
+        #echo $x
+        #echo $y
+
+        #show cursor
+        echo -en $CSI"?25h"
+
+        anc_set_cursor_position $CURCOL $CURLINE
+
+        #fixes buffer bug
+        anc_move_left 50
+        anc_clear_bottom
+        anc_set_cursor_position $CURCOL $CURLINE
+
+        if [[ "$selection" != "" ]]
+        then
+            echo
+            matches=$(anc_list_grep_matches "$@")
+            dir=$(anc_get_line "$matches" "$selection")
+            anc_cd "$dir"
+            echo $(tty) > "$HOME/.anc_skip_tty"
+            anc_ttyecho $'\n'
+        fi
+        return
+    fi
+
+    local MATCHES=$(anc_list_grep_matches "$@")
+
+    if [[ "$MATCHES" == "" ]]
+    then
+        anc_verbose "No match"
+        return
+    fi
+
+    local MATCH=$(echo "$MATCHES" | head -n1)
 
     #if $MATCH is a directory 
     if [[ -d "$MATCH" ]]
@@ -669,6 +956,7 @@ function anc_list_jump
     then
         PAR=$REST2
     fi
+
 
     if [[ "$1" == "-1" && "$2" == "-1" ]]
     then
@@ -727,6 +1015,7 @@ function anc_help
     read -d '' help <<- EOF
 Usage: anc [OPTIONS]
        anc ( <NUM> | <TEXT> )
+       anc <PATH>
 
 Changes directory to one of the previously set anchors.
 Jumps to current default anchor with no options given.
@@ -750,6 +1039,10 @@ any of the options, it is equivalent to:
 If the first parameter is a number and there are multiple
 parameters, it is equivalent to:
   anc -g TEXT TEXT...
+
+If the first parameter is either an existing absolute path
+or an existing relative path starting with ./ or ../, anc will
+add it to the anchors list and jump to it immediately.
 
 Options:
   -s DIR         Set DIR as default anchor. [default: current directory]
@@ -813,6 +1106,23 @@ Examples:
 
     # use text matching to jump to $HOME/documents/first
     $ anc doc fir
+
+    # add anchor and jump to it using an absolute path
+    $ anc /etc
+    # is the same as
+    $ anc a /etc; anc -1
+
+    # add anchor and jump to it using a relative path
+    $ anc ./X11 #note that "./" is required for relative paths
+    # is the same as
+    $ anc a X11; anc -1
+
+    # using wildcards you can add many anchors at once
+    $ anc a $HOME/projects/*
+    
+    # use shell completion to see a list of matching anchors
+    # and select the one you want to jump to directly
+    $ anc pro[TAB]
 EOF
     echo "$help"
 }
@@ -834,8 +1144,9 @@ function anc_install
     read -d '' help <<- EOF
 Installing anc
 
-  Add the following line to your ~/.bashrc:
+  Add the following lines to your ~/.bashrc:
   alias anc=". /absolute/path/to/anc"
+  anc --init-completion
 
   It's required to use the absolute path, because a file
   named anc in the current directory could otherwise
@@ -876,69 +1187,206 @@ function anc_sort
     mv "$HOME/.anc_tmp" "$HOME/.anc_list"
 }
 
-anc_read_config
+function anc_is_completion
+{
+    if [[ "$ANC_COMPLETION" == "TRUE" ]]
+    then
+        return 0
+    else
+        return 1
+    fi
+}
 
-if   [[ "$1" == "s" || "$1" == "-s" ]]
-then
-	anc_set_anchor "$2"
-elif [[ "$1" == "a" || "$1" == "-a" ]]
-then
-	anc_add_anchors "${@:2}"
-elif [[ "$1" == "r" || "$1" == "-r" ]]
-then
-	anc_remove_anchors "${@:2}"
-elif [[ "$1" == "b" || "$1" == "-b" ]]
-then
-	anc_back
-elif [[ "$1" == "g" || "$1" == "-g" ]]
-then
-	anc_list_grep_jump "${@:2}"
-elif [[ "$1" == "v" || "$1" == "-v" ]]
-then
-    anc_view_anchor
-elif [[ "$1" == "l" || "$1" == "-l" || "$1" == "--list" ]]
-then
-    anc_list
-elif [[ "$1" == j*  || "$1" == "j"  || "$1" == -j*      ]]
-then
-    anc_list_jump $1 $2
-elif [[ "$1" == "-1" ]]
-then
-    anc_list_jump $1 "-1"
-elif [[ $(anc_is_number "$1") == "TRUE" && "$2" == "" ]]
-then
-    anc_list_jump "j" $1
-elif [[ "$1" == "-i" || "$1" == "i" ]]
-then
-    anc_interactive
-elif [[ "$1" == "--config-help" ]]
-then
-    anc_config_help
-elif [[ "$1" == "-h"    || "$1" == "--help" || "$1" == "h" ]]
-then
-    anc_help
-elif [[ "$1" == "--examples" ]]
-then
-    anc_examples
-elif [[ "$1" == "--clear" ]]
-then
-    anc_clear_list
-elif [[ "$1" == "--sort" ]]
-then
-    anc_sort
-elif [[ "$1" == "--version" ]]
-then
-    anc_version
-elif [[ "$1" == "--install" ]]
-then
-    anc_install
-elif [[ $1 != "" ]]
-then
-	anc_list_grep_jump "${@:1}"
-else
-    anc_default
-fi
+function _anc_complete   #  By convention, the function name
+{                        #  starts with an underscore.
+    local cur
+    # Pointer to current completion word.
+    # By convention, it's named "cur" but this isn't strictly necessary.
 
-anc_unset
+    if [ "$1" = "0" ]
+    then
+        return
+    fi
+
+    COMPREPLY=()   # Array variable storing the possible completions.
+    cur=${COMP_WORDS[COMP_CWORD]}
+
+    export ANC_COMPLETION="TRUE"
+
+    \anc "${COMP_WORDS[@]:1}"
+
+    unset ANC_COMPLETION
+
+    #if [[ "$MATCHES" == "" ]]
+    #then
+    #    anc_verbose "No match"
+    #    return
+    #fi
+    #
+    #anc_main $cur
+
+    return 0
+
+    case "$cur" in
+    -*)
+    COMPREPLY=( $( compgen -W '-a -d -f -l -t -h --aoption --debug \
+                           --file --log --test --help --' -- $cur ) );;
+    #   Generate the completion matches and load them into $COMPREPLY array.
+    #   xx) May add more cases here.
+    #   yy)
+    #   zz)
+    esac
+
+    return 0
+}
+
+function anc_init_completion
+{
+    complete -F _anc_complete anc
+}
+
+function anc_trap_ctrl_c
+{
+        echo "Ctrl+c: aborted"
+        echo $(tty) > "$HOME/.anc_skip_tty"
+        anc_ttyecho $'\n'
+        anc_clear_bottom
+        #FIXME: why isn't this enough in completion mode?
+        anc_unset
+        exit
+}
+
+function anc_skip_test
+{
+    if [[ -e "$HOME/.anc_skip_tty" ]]
+    then
+        if test $(find "$HOME/.anc_skip_tty" -mmin +1)
+        then
+            return 1
+        fi
+
+        tty=$(cat "$HOME/.anc_skip_tty")
+        if [[ "$tty" == $(tty) ]]
+        then
+            #echo do nothing john snow
+            echo -n $'\e['"1A";
+            rm -f "$HOME/.anc_skip_tty"
+            return 0
+        fi
+    fi
+    return 1
+}
+
+function anc_main
+{
+    if anc_skip_test
+    then
+        return
+    fi
+
+    #if the user interrupts/aborts anc,
+    #we want to cleanup what we can
+    trap anc_trap_ctrl_c INT
+
+    anc_read_config
+    
+    #this line skips operation when in completion
+    #mode and completion isn't supported for given parameters:
+    #anc_is_completion && return
+
+    if   [[ "$1" == "s" || "$1" == "-s" ]]
+    then
+        anc_is_completion && return
+	    anc_set_anchor "$2"
+    elif [[ "$1" == "a" || "$1" == "-a" ]]
+    then
+        anc_is_completion && return
+	    anc_add_anchors "${@:2}"
+    elif [[ "$1" == "r" || "$1" == "-r" ]]
+    then
+        anc_is_completion && return
+	    anc_remove_anchors "${@:2}"
+    elif [[ "$1" == "b" || "$1" == "-b" ]]
+    then
+        anc_is_completion && return
+	    anc_back
+    elif [[ "$1" == "g" || "$1" == "-g" ]]
+    then
+	    anc_list_grep_jump "${@:2}"
+    elif [[ "$1" == "v" || "$1" == "-v" ]]
+    then
+        anc_is_completion && return
+        anc_view_anchor
+    elif [[ "$1" == "l" || "$1" == "-l" || "$1" == "--list" ]]
+    then
+        anc_is_completion && return
+        anc_list
+    elif [[ "$1" == j*  || "$1" == "j"  || "$1" == -j*      ]]
+    then
+        anc_is_completion && return
+        anc_list_jump $1 $2
+    elif [[ "$1" == "-1" ]]
+    then
+        anc_is_completion && return
+        anc_list_jump $1 "-1"
+    elif [[ $(anc_is_number "$1") == "TRUE" && "$2" == "" ]]
+    then
+        anc_is_completion && return
+        anc_list_jump "j" $1
+    elif [[ "$1" == "-i" || "$1" == "i" ]]
+    then
+        anc_is_completion && return
+        anc_interactive
+    elif [[ "$1" == "--config-help" ]]
+    then
+        anc_is_completion && return
+        anc_config_help
+    elif [[ "$1" == "-h"    || "$1" == "--help" || "$1" == "h" ]]
+    then
+        anc_is_completion && return
+        anc_help
+    elif [[ "$1" == "--examples" ]]
+    then
+        anc_is_completion && return
+        anc_examples
+    elif [[ "$1" == "--clear" ]]
+    then
+        anc_is_completion && return
+        anc_clear_list
+    elif [[ "$1" == "--sort" ]]
+    then
+        anc_is_completion && return
+        anc_sort
+    elif [[ "$1" == "--version" ]]
+    then
+        anc_is_completion && return
+        anc_version
+    elif [[ -d "$1"  && "$2" == "" ]]
+    then
+        anc_is_completion && return
+        if $(anc_startswith "$1" "/") || $(anc_startswith "$1" "./") || $(anc_startswith "$1" "../")
+        then
+            anc_path_jump "$1"
+        fi
+    elif [[ "$1" == "--install" ]]
+    then
+        anc_is_completion && return
+        anc_install
+    elif [[ "$1" == "--init-completion" ]]
+    then
+        anc_is_completion && return
+        anc_init_completion
+    elif [[ "$1" != "" ]]
+    then
+	    anc_list_grep_jump "${@:1}"
+    else
+        anc_is_completion && return
+        anc_default
+    fi
+
+    anc_unset
+}
+
+anc_main "$@"
 
 

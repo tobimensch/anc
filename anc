@@ -462,16 +462,16 @@ function anc_list_it
 
     if [[ "$1" == "$PWD" && "$1" == "$ANCHOR" ]]
     then
-        ext=".=*"
+        ext=$'    '".=*"
     elif [[ "$1" == "$PWD" ]]
     then
-        ext="."
+        ext=$'    '"."
     elif [[ "$1" == "$ANCHOR" ]]
     then
-        ext="*"
+        ext=$'    '"*"
     fi	
 
-    string="("$(anc_pad_zero $2)") "$(anc_format_dir "$1")$'    '"$ext"
+    string="("$(anc_pad_zero $2)") "$(anc_format_dir "$1")"$ext"
     output="$output"$'\n'"$string"
 
     if [[ "${#string}" -gt "$maxlen" ]]

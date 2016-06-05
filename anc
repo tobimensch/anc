@@ -736,6 +736,8 @@ function anc_list_grep_matches_formated
     fi
 
     ANC_LIST_GREP_CFORMAT=$(anc_list_grep_matches_formated_impl "$@")
+    total_grep=$(echo "$ANC_LIST_GREP_CFORMAT" | wc -l)
+
     echo "$ANC_LIST_GREP_CFORMAT"
 }
 
@@ -784,19 +786,34 @@ function anc_interactive_match_list
     local max=
     local MATCH
     local diff
-    ((max=term_lines-2))
+    ((max=term_lines-1))
+    local offset=
+    local offset2=
+
+    if ((lnm+1>max))
+    then
+        ((offset=lnm+1-max,offset2=offset))
+    fi
 
     while read -r MATCH
     do
-        if ((mcnt==lnm))
+        if ((offset>0))
         then
-            buff="$buff"$'\e[K'$'\e[47;30m'$MATCH$'\n'$'\e[0m'
+            ((offset-=1))
+            continue
+        fi
+
+        if ((mcnt+offset2==lnm))
+        then
+            buff="$buff"$'\e[K'$'\e[47;30m'$MATCH$'\e[0m'
         else            
-            buff="$buff"$'\e[K'$MATCH$'\n'
+            buff="$buff"$'\e[K'$MATCH
         fi
         if ((mcnt+=1,mcnt==max))
         then
             break
+        else
+            buff="$buff"$'\n'
         fi
     done <<< "$(anc_list_grep_matches_formated "$@")"
 
@@ -840,6 +857,7 @@ function anc_list_grep_jump
         local selection
         local term_lines=$(tput lines)
         local ANC_LIST_GREP_CFORMAT=
+        local total_grep=
 
         anc_read_cursor_position
 
@@ -872,6 +890,10 @@ function anc_list_grep_jump
                 then
                     #echo "key_arrow_up"
                     ((lnm-=1))
+                    if ((lnm<0))
+                    then
+                        ((lnm=total_grep-1))
+                    fi
                     #anc_clear_bottom
                     anc_set_cursor_position $CURCOL $CURLINE
                     anc_interactive_match_list "$@"
@@ -879,6 +901,10 @@ function anc_list_grep_jump
                 then
                     #echo "key_arrow_down"
                     ((lnm+=1))
+                    if ((lnm>total_grep-1))
+                    then
+                        lnm="0"
+                    fi
                     #anc_clear_bottom
                     anc_set_cursor_position $CURCOL $CURLINE
                     anc_interactive_match_list "$@"

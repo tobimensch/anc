@@ -667,7 +667,8 @@ function anc_interactive
     ANC_SAVE_ECHO="TRUE"
 
     anc_list
-    anc_echo "--------------"
+    
+    anc_echo $(head -c $(tput cols) < /dev/zero | tr '\0' '_')
     anc_echo -n "Jump to anchor number: "
     read NUM
     if [[ $(anc_is_number "$NUM") == "TRUE" ]]
@@ -1242,7 +1243,7 @@ function _anc_complete   #  By convention, the function name
 
     export ANC_COMPLETION="TRUE"
 
-    \anc "${COMP_WORDS[@]:1}"
+    anc "${COMP_WORDS[@]:1}"
 
     unset ANC_COMPLETION
 
@@ -1276,13 +1277,13 @@ function anc_init_completion
 
 function anc_trap_ctrl_c
 {
-        echo "Ctrl+c: aborted"
-        echo $(tty) > "$HOME/.anc_skip_tty"
-        anc_ttyecho $'\n'
-        anc_clear_bottom
-        #FIXME: why isn't this enough in completion mode?
-        anc_unset
-        exit
+    echo "Ctrl+c: aborted"
+    echo $(tty) > "$HOME/.anc_skip_tty"
+    anc_ttyecho $'\n'
+    anc_clear_bottom
+    #FIXME: why isn't this enough in completion mode?
+    anc_unset
+    exit
 }
 
 function anc_skip_test
@@ -1310,6 +1311,7 @@ function anc_main
 {
     if anc_skip_test
     then
+        anc_unset
         return
     fi
 

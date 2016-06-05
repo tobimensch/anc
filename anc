@@ -40,6 +40,7 @@ function anc_unset
     unset ANC_ECHO_CACHE
     unset ANC_VERSION
     unset ANC_LIST_GREP_CACHE
+    unset ANC_CD_CLEAR
     #global var ANC_BACK is the exception to the rule
     #it holds the last directory the user was in before anc changed it with anc
 
@@ -97,6 +98,7 @@ function anc_unset
     unset anc_list_grep_matches_formated_impl
     unset anc_skip_test
     unset anc_trap_ctrl_c
+    unset anc_main_impl
 
     #realpath
     unset anc_realpath
@@ -240,6 +242,14 @@ function anc_cd
 
         anc_verbose "Changed to: "$1
         cd "$1"
+
+        if [[ "$ANC_CD_CLEAR" != "FALSE" ]]
+        then
+            local clearlines
+            clearlines=$(($(tput lines)-3))
+            head -c $clearlines < /dev/zero | tr '\0' '\n'
+            echo -en $'\e['"$clearlines""A"
+        fi
 
         # one might object to this code, because
         # you could use $OLDPWD instead of $ANC_BACK.
@@ -671,9 +681,12 @@ function anc_interactive
     anc_echo $(head -c $(tput cols) < /dev/zero | tr '\0' '_')
     anc_echo -n "Jump to anchor number: "
     read NUM
+
     if [[ $(anc_is_number "$NUM") == "TRUE" ]]
     then
+        ANC_CD_CLEAR="FALSE"
         anc_list_jump "j" "$NUM"
+        ANC_CD_CLEAR=
     else
         anc_verbose "Not a number"
     fi
@@ -683,9 +696,20 @@ function anc_interactive
     #erase
     #set cursor position to where it was when the position was last read
     anc_set_cursor_position $CURCOL $CURLINE
-    echo -ne "$ANC_ECHO_CACHE"
+    #echo -ne "$ANC_ECHO_CACHE"
+    #anc_set_cursor_position $CURCOL $CURLINE
+    #anc_move_left 50
+
+    anc_clear_bottom
+
     anc_set_cursor_position $CURCOL $CURLINE
-    
+
+
+#    anc_clear_bottom
+#
+#   anc_set_cursor_position $CURCOL $CURLINE
+    echo -ne $'\e['"K"
+
     echo -ne "$ANC_VERBOSE_CACHE"
 
     ANC_VERBOSE_CACHE=
@@ -757,7 +781,7 @@ function anc_clear_bottom
     local linep="$CURLINE"
     while [[ "$linep" -lt $(tput lines) ]]
     do
-        buff="$buff""$CSI""1B"$'\e[K'
+        buff="$buff""\e[""1B"$'\e[K'
         linep=$((linep+1))
     done
     echo -ne "$buff"
@@ -828,6 +852,7 @@ function anc_interactive_match_list
 
 function anc_ttyecho
 {
+    local perlcode
     read -d '' perlcode <<- EOF
 require "sys/ioctl.ph";
 ioctl(STDIN, &TIOCSTI, \$_) for split "", join " ", @ARGV;
@@ -939,6 +964,7 @@ function anc_list_grep_jump
 
         if [[ "$selection" != "" ]]
         then
+            local matches
             echo
             matches=$(anc_list_grep_matches "$@")
             dir=$(anc_get_line "$matches" "$selection")
@@ -1307,11 +1333,10 @@ function anc_skip_test
     return 1
 }
 
-function anc_main
+function anc_main_impl
 {
     if anc_skip_test
     then
-        anc_unset
         return
     fi
 
@@ -1414,7 +1439,13 @@ function anc_main
         anc_is_completion && return
         anc_default
     fi
+}
 
+function anc_main
+{
+    #real main
+    anc_main_impl "$@"
+    #cleanup
     anc_unset
 }
 

@@ -1298,7 +1298,21 @@ function _anc_complete   #  By convention, the function name
 
 function anc_init_completion
 {
-    complete -F _anc_complete anc
+    complete -o nospace -F _anc_complete anc
+}
+
+
+function anc_dir_completion
+{
+    local gen
+
+    gen=$( compgen -W $(compgen -o dirnames -- "$cur") -- "$cur" )
+
+    COMPREPLY=( "$gen" )
+
+    #echo "---"
+   # echo $COMPREPLY
+   # echo "___"
 }
 
 function anc_trap_ctrl_c
@@ -1352,15 +1366,15 @@ function anc_main_impl
 
     if   [[ "$1" == "s" || "$1" == "-s" ]]
     then
-        anc_is_completion && return
+        anc_is_completion && anc_dir_completion && return
 	    anc_set_anchor "$2"
     elif [[ "$1" == "a" || "$1" == "-a" ]]
     then
-        anc_is_completion && return
+        anc_is_completion && anc_dir_completion && return
 	    anc_add_anchors "${@:2}"
     elif [[ "$1" == "r" || "$1" == "-r" ]]
     then
-        anc_is_completion && return
+        anc_is_completion && anc_dir_completion && return
 	    anc_remove_anchors "${@:2}"
     elif [[ "$1" == "b" || "$1" == "-b" ]]
     then

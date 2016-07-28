@@ -364,9 +364,7 @@ function anc_add_anchor
 
     #add anchor to anc list
     #but only if the anchor isn't already in there
-    local FOUND=$(anc_list_find "$DIR")
-
-    if [[ "$FOUND" == "false" ]]
+    if ! anc_list_find "$DIR"
     then
         echo "$DIR" >> "$HOME/.anc_list"
     else
@@ -447,13 +445,12 @@ function anc_list_find
                 then #hook
                     $2
                 fi
-			    echo -n "true"
-                return
+                return 0
 		    fi
-		    CNT=$((CNT+1))
+		    ((CNT+=1))
 	    done <$HOME/.anc_list
     fi
-    echo -n "false"
+    return 1
 }
 
 function anc_format_dir
@@ -548,7 +545,7 @@ function anc_read_list
             fi
 
 			$1 $hl $CNT $2
-			CNT=$((CNT+1))
+			((CNT+=1))
 		done <$HOME/.anc_list
 
         if [[ "$output" == "" ]]
@@ -579,10 +576,10 @@ function anc_read_list
                 else
                     echo -n "$line"$'\n'
                 fi
-                CNT=$((CNT+1))
+                ((CNT+=1))
             done <<< "$output"
 
-            if [[ $((CNT%2)) == "0" ]]
+            if ((CNT%2 == 0))
             then
                 echo
             fi
@@ -608,7 +605,7 @@ function anc_read_config
             then
                 ANC_VERBOSE=${hl:12}
             fi
-			CNT=$((CNT+1))
+			((CNT+=1))
 		done <$HOME/.anc_config
 	fi
 }
@@ -740,9 +737,9 @@ function anc_list_grep_matches
 
         fgrep -i "$string" "$HOME/.anc_tmp" 2> /dev/null > "$HOME/.anc_tmp2"
         mv "$HOME/.anc_tmp2" "$HOME/.anc_tmp" 2> /dev/null
-        MATCHES=$(cat "$HOME/.anc_tmp" 2> /dev/null)
+        MATCHES=$(< "$HOME/.anc_tmp")
 
-        if [[ "$MATCHES" == "" ]]
+        if [[ -z "$MATCHES" ]]
         then
             return
         fi
@@ -784,7 +781,7 @@ function anc_clear_bottom
     while [[ "$linep" -lt $(tput lines) ]]
     do
         buff="$buff""\e[""1B"$'\e[K'
-        linep=$((linep+1))
+        ((linep+=1))
     done
     echo -ne "$buff"
 }
@@ -802,7 +799,7 @@ function anc_get_line
             echo "$line"
             return
         fi
-        cnt=$((cnt+1))
+        ((cnt+=1))
     done <<< "$lines"
 }
 
@@ -1022,10 +1019,10 @@ function anc_list_jump
 
     if [[ "$1" == "-1" && "$2" == "-1" ]]
     then
-        PAR=$(($(wc -l < $HOME/.anc_list)-1))
+        ((PAR=$(wc -l < $HOME/.anc_list)-1))
     fi
 
-	if [[ "$PAR" == "" ]]
+	if [[ -z "$PAR" ]]
 	then
 		echo "Usage: anc j NUMBER"
 		echo "       get number with:"
@@ -1043,7 +1040,7 @@ function anc_list_jump
                     FOUND="true"
 				    break;
 			    fi
-			    CNT=$((CNT+1))
+			    ((CNT+=1))
 		    done <$HOME/.anc_list
         fi  
         if [[ "$FOUND" == "false" ]]
@@ -1343,7 +1340,7 @@ function anc_skip_test
             return 1
         fi
 
-        tty=$(cat "$HOME/.anc_skip_tty")
+        tty=$(< "$HOME/.anc_skip_tty")
         if [[ "$tty" == $(tty) ]]
         then
             #echo do nothing john snow

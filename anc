@@ -41,6 +41,7 @@ function anc_unset
     unset ANC_VERSION
     unset ANC_LIST_GREP_CACHE
     unset ANC_CD_CLEAR
+    unset ANC_INTERACTIVE_COMPLETION
     #global var ANC_BACK is the exception to the rule
     #it holds the last directory the user was in before anc changed it with anc
 
@@ -99,6 +100,7 @@ function anc_unset
     unset anc_skip_test
     unset anc_trap_ctrl_c
     unset anc_main_impl
+    unset anc_dir_completion
 
     #realpath
     unset anc_realpath
@@ -218,8 +220,8 @@ function anc_verbose
 function anc_is_number
 {
     case $1 in
-        ''|*[!0-9]*) echo "FALSE" ;;
-        *) echo "TRUE" ;;
+        ''|*[!0-9]*) return 1 ;;
+        *) return 0 ;;
     esac
 }
 
@@ -682,7 +684,7 @@ function anc_interactive
     anc_echo -n "Jump to anchor number: "
     read NUM
 
-    if [[ $(anc_is_number "$NUM") == "TRUE" ]]
+    if anc_is_number "$NUM"
     then
         ANC_CD_CLEAR="FALSE"
         anc_list_jump "j" "$NUM"
@@ -863,12 +865,13 @@ EOF
     rm -f /tmp/perlttyecho
 }
 
+ANC_INTERACTIVE_COMPLETION=
+
 function anc_list_grep_jump
 {
     if anc_is_completion
     then
-       # Pointer to current completion word.
-        # By convention, it's named "cur" but this isn't strictly necessary.
+        ANC_INTERACTIVE_COMPLETION="TRUE"
 
         local CURLINE=0
         local CURCOL=0
@@ -972,6 +975,9 @@ function anc_list_grep_jump
             echo $(tty) > "$HOME/.anc_skip_tty"
             anc_ttyecho $'\n'
         fi
+
+
+        ANC_INTERACTIVE_COMPLETION=
         return
     fi
 
@@ -1001,14 +1007,14 @@ function anc_list_jump
     local REST=${PAR:1}
     local REST2=${PAR:2}
 
-    if [[ "$FIRST" == "j" && $(anc_is_number $REST) == "TRUE" ]]
+    if [[ "$FIRST" == "j" ]] && anc_is_number $REST
     then
         PAR=$REST
     else
         PAR=$2
     fi
 
-    if [[ "$FIRST" == "-" && $(anc_is_number $REST2) == "TRUE" ]]
+    if [[ "$FIRST" == "-" ]] && anc_is_number $REST2
     then
         PAR=$REST2
     fi
@@ -1318,12 +1324,14 @@ function anc_dir_completion
 function anc_trap_ctrl_c
 {
     echo "Ctrl+c: aborted"
-    echo $(tty) > "$HOME/.anc_skip_tty"
-    anc_ttyecho $'\n'
-    anc_clear_bottom
-    #FIXME: why isn't this enough in completion mode?
+
+    if [[ "$ANC_INTERACTIVE_COMPLETION" == "TRUE" ]]
+    then
+        anc_ttyecho $'\t'
+        anc_clear_bottom
+        return
+    fi
     anc_unset
-    exit
 }
 
 function anc_skip_test
@@ -1345,6 +1353,11 @@ function anc_skip_test
         fi
     fi
     return 1
+}
+
+function anc_is_explicit_directory
+{
+    anc_startswith "$1" "/" || anc_startswith "$1" "./" || anc_startswith "$1" "../"
 }
 
 function anc_main_impl
@@ -1399,7 +1412,7 @@ function anc_main_impl
     then
         anc_is_completion && return
         anc_list_jump $1 "-1"
-    elif [[ $(anc_is_number "$1") == "TRUE" && "$2" == "" ]]
+    elif anc_is_number "$1" && [[ -z "$2" ]]
     then
         anc_is_completion && return
         anc_list_jump "j" $1
@@ -1431,13 +1444,10 @@ function anc_main_impl
     then
         anc_is_completion && return
         anc_version
-    elif [[ -d "$1"  && "$2" == "" ]]
+    elif [[ -d "$1"  && -z "$2" ]] && anc_is_explicit_directory "$1"
     then
         anc_is_completion && return
-        if $(anc_startswith "$1" "/") || $(anc_startswith "$1" "./") || $(anc_startswith "$1" "../")
-        then
-            anc_path_jump "$1"
-        fi
+        anc_path_jump "$1"
     elif [[ "$1" == "--install" ]]
     then
         anc_is_completion && return
